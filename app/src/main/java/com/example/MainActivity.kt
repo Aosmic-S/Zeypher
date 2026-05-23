@@ -11,16 +11,34 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.getValue
 import com.example.ui.ZephyrScreen
 import com.example.ui.theme.MyApplicationTheme
 
+import androidx.activity.viewModels
+
 class MainActivity : ComponentActivity() {
+  private val viewModel: com.example.ui.ZephyrViewModel by viewModels()
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
     setContent {
-      MyApplicationTheme {
-        ZephyrScreen()
+      val appTheme by viewModel.appTheme.collectAsStateWithLifecycle()
+      val isDarkTheme = when (appTheme) {
+          "dark" -> true
+          "light" -> false
+          else -> isSystemInDarkTheme()
+      }
+      MyApplicationTheme(darkTheme = isDarkTheme) {
+        val showSplash = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
+        if (showSplash.value) {
+            com.example.ui.IntroScreen(onFinished = { showSplash.value = false })
+        } else {
+            ZephyrScreen(viewModel = viewModel)
+        }
       }
     }
   }

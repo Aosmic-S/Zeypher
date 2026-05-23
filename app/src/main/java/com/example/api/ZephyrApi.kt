@@ -41,4 +41,7 @@ interface ZephyrApi {
 
     @GET("setBrightness")
     suspend fun setBrightness(@Query("v") v: Int): Response<ResponseBody>
+
+    @GET("soundCmd")
+    suspend fun soundCmd(@Query("c") c: Int): Response<ResponseBody>
 }

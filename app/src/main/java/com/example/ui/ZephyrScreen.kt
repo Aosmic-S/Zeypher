@@ -22,9 +22,14 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Palette
 import com.example.api.ZephyrState
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ZephyrScreen(
     modifier: Modifier = Modifier,
@@ -32,6 +37,11 @@ fun ZephyrScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val ipAddress by viewModel.ipAddress.collectAsStateWithLifecycle()
+    
+    val isMicEnabled by viewModel.isMicEnabled.collectAsStateWithLifecycle()
+    val appTheme by viewModel.appTheme.collectAsStateWithLifecycle()
+
+    val micPermissionState = rememberPermissionState(android.Manifest.permission.RECORD_AUDIO)
     
     var showIpDialog by remember { mutableStateOf(false) }
 
@@ -75,7 +85,10 @@ fun ZephyrScreen(
                 is ZephyrUiState.Success -> {
                     DashboardContent(
                         state = state.state,
-                        viewModel = viewModel
+                        viewModel = viewModel,
+                        micPermissionState = micPermissionState,
+                        isMicEnabled = isMicEnabled,
+                        appTheme = appTheme
                     )
                 }
             }
@@ -112,10 +125,14 @@ fun ZephyrScreen(
     }
 }
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun DashboardContent(
     state: ZephyrState,
-    viewModel: ZephyrViewModel
+    viewModel: ZephyrViewModel,
+    micPermissionState: com.google.accompanist.permissions.PermissionState,
+    isMicEnabled: Boolean,
+    appTheme: String
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -124,6 +141,25 @@ fun DashboardContent(
     ) {
         item {
             LedStrip(leds = state.leds)
+        }
+        item {
+            AnimatedVisibility(visible = state.lastCmd != "none") {
+                Text(
+                    text = "App Sound Command: ${state.lastCmd}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+        }
+        item {
+            AppSettingsCard(
+                isMicEnabled = isMicEnabled,
+                appTheme = appTheme,
+                micPermissionState = micPermissionState,
+                onMicChange = { viewModel.setMicEnabled(it) },
+                onThemeChange = { viewModel.setTheme(it) }
+            )
         }
 
         item {
@@ -179,7 +215,8 @@ fun DashboardContent(
                 state = state,
                 onTempChange = { viewModel.setTempThresh(it) },
                 onHumChange = { viewModel.setHumThresh(it) },
-                onBrightnessChange = { viewModel.setBrightness(it) }
+                onBrightnessChange = { viewModel.setBrightness(it) },
+                onTankDepthChange = { viewModel.setTankH(it) }
             )
         }
     }
@@ -230,6 +267,75 @@ fun LedDot(hex: String) {
             .background(color)
             .border(1.dp, Color.Gray.copy(alpha = 0.5f), CircleShape)
     )
+}
+
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+fun AppSettingsCard(
+    isMicEnabled: Boolean,
+    appTheme: String,
+    micPermissionState: com.google.accompanist.permissions.PermissionState,
+    onMicChange: (Boolean) -> Unit,
+    onThemeChange: (String) -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column {
+            Text("App Settings", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(16.dp))
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Mic, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Sound Control", fontWeight = FontWeight.Medium)
+                    Text(if (isMicEnabled) "Listening for claps..." else "Microphone off", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(
+                    checked = isMicEnabled,
+                    onCheckedChange = {
+                        if (it && !micPermissionState.status.isGranted) {
+                            micPermissionState.launchPermissionRequest()
+                        } else {
+                            onMicChange(it)
+                        }
+                    }
+                )
+            }
+            
+            HorizontalDivider()
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Palette, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Theme", fontWeight = FontWeight.Medium)
+                    Text("Choose app appearance", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    FilterChip(
+                        selected = appTheme == "light",
+                        onClick = { onThemeChange("light") },
+                        label = { Text("Light") }
+                    )
+                    FilterChip(
+                        selected = appTheme == "dark",
+                        onClick = { onThemeChange("dark") },
+                        label = { Text("Dark") }
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -375,7 +481,8 @@ fun ThresholdsCard(
     state: ZephyrState,
     onTempChange: (Float) -> Unit,
     onHumChange: (Int) -> Unit,
-    onBrightnessChange: (Int) -> Unit
+    onBrightnessChange: (Int) -> Unit,
+    onTankDepthChange: (Float) -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -416,6 +523,17 @@ fun ThresholdsCard(
                 onValueChange = { onBrightnessChange(it.toInt()) },
                 valueRange = 10f..220f,
                 steps = 41 // (220-10)/5 - 1
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Empty Tank Depth", fontWeight = FontWeight.Medium)
+                Text("${String.format("%.1f cm", state.tankH)}", color = MaterialTheme.colorScheme.primary)
+            }
+            Slider(
+                value = state.tankH,
+                onValueChange = onTankDepthChange,
+                valueRange = 5f..100f
             )
         }
     }

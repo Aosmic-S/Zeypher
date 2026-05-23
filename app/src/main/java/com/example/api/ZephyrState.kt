@@ -15,6 +15,8 @@ data class ZephyrState(
     val humTh: Int = 75,
     val br: Int = 80,
     val waterLow: Boolean = false,
+    val humHigh: Boolean = false,
+    val tankH: Float = 30.0f,
     val sched: Boolean = false,
     val schedOnH: Int = 9,
     val schedOnM: Int = 0,
@@ -26,5 +28,6 @@ data class ZephyrState(
     val timeSet: Boolean = false,
     val inSched: Boolean = true,
     val pause: String = "",
+    val lastCmd: String = "none",
     val leds: List<String> = emptyList()
 )
