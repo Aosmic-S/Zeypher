@@ -48,6 +48,9 @@ interface ZephyrApi {
     @GET("voice")
     suspend fun voice(@Query("cmd") cmd: String): Response<ResponseBody>
 
+    @GET("setLed")
+    suspend fun setLed(@Query("anim") anim: String, @Query("r") r: Int, @Query("g") g: Int, @Query("b") b: Int, @Query("func") func: String = ""): Response<ResponseBody>
+
     @retrofit2.http.Multipart
     @retrofit2.http.POST("update")
     suspend fun updateFirmware(

@@ -36,10 +36,6 @@ class ZephyrViewModel : ViewModel() {
     private val _appTheme = MutableStateFlow("auto")
     val appTheme = _appTheme.asStateFlow()
 
-    private var micJob: Job? = null
-    private var clapCount = 0
-    private var lastClapTime = 0L
-
     init {
         startPolling()
     }
@@ -73,37 +69,6 @@ class ZephyrViewModel : ViewModel() {
 
     fun setMicEnabled(enabled: Boolean) {
         _isMicEnabled.update { enabled }
-        if (enabled) {
-            micJob = viewModelScope.launch {
-                AudioDetector.startListening().collectLatest { db ->
-                    processAudio(db)
-                }
-            }
-        } else {
-            micJob?.cancel()
-            micJob = null
-        }
-    }
-
-    private fun processAudio(db: Double) {
-        val CLAP_THRESHOLD = 70.0
-        val now = System.currentTimeMillis()
-        if (db > CLAP_THRESHOLD) {
-            if (now - lastClapTime > 400) {
-                clapCount++
-                lastClapTime = now
-            }
-        } else {
-            if (clapCount > 0 && now - lastClapTime > 1200) {
-                when (clapCount) {
-                    1 -> sendSoundCmd(1)
-                    2 -> sendSoundCmd(2)
-                    3 -> sendSoundCmd(3)
-                    4 -> sendSoundCmd(4)
-                }
-                clapCount = 0
-            }
-        }
     }
 
     fun sendVoiceCmd(cmd: String) = executeAction { ZephyrClient.api.voice(cmd) }
@@ -144,6 +109,7 @@ class ZephyrViewModel : ViewModel() {
     fun setPump(on: Boolean) = executeAction { ZephyrClient.api.setPump(if (on) 1 else 0) }
     fun setSched(en: Boolean) = executeAction { ZephyrClient.api.setSched(en = if (en) 1 else 0) }
     fun setBrightness(v: Int) = executeAction { ZephyrClient.api.setBrightness(v) }
+    fun setLed(anim: String, r: Int, g: Int, b: Int, func: String = "") = executeAction { ZephyrClient.api.setLed(anim, r, g, b, func) }
 
     private fun executeAction(action: suspend () -> Unit) {
         viewModelScope.launch {
