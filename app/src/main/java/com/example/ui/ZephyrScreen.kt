@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SettingsEthernet
 import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -137,6 +138,12 @@ fun ZephyrScreen(
                         icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
                         label = { Text("Settings") }
                     )
+                    NavigationBarItem(
+                        selected = currentTab == 3,
+                        onClick = { currentTab = 3 },
+                        icon = { Icon(Icons.Default.List, contentDescription = "Guide") },
+                        label = { Text("Guide") }
+                    )
                 }
             }
         },
@@ -223,6 +230,7 @@ fun ZephyrScreen(
                                 },
                                 viewModel = viewModel
                              )
+                        3 -> GuideContent()
                     }
                 }
             }
@@ -632,3 +640,45 @@ fun ThresholdsCard(
         }
     }
 }
+
+@Composable
+fun GuideContent() {
+    LazyColumn(
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Voice Commands Guide", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Here is a list of words you can say when voice command is enabled:", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    val commands = listOf(
+                        "turn on cooler" to "Turns on the cooler and auto mode.",
+                        "turn off cooler" to "Turns off the cooler.",
+                        "set fan speed to high" to "Sets the fan to high speed.",
+                        "pump on" to "Turns the water pump on.",
+                        "pump off" to "Turns the water pump off.",
+                        "enable auto mode" to "Enables auto climate control.",
+                        "disable auto mode" to "Disables auto mode (manual control).",
+                        "turn on leds" to "Turns on the LED strip.",
+                        "turn off leds" to "Turns off the LED strip.",
+                        "set led to red" to "Sets the LED color to red.",
+                        "set led to blue" to "Sets the LED color to blue."
+                    )
+                    
+                    commands.forEach { (cmd, desc) ->
+                        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                            Text("\"$cmd\"", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Text(desc, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
