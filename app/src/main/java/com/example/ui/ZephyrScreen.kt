@@ -73,37 +73,52 @@ fun ZephyrScreen(
 
     // Continuous Speech Recognizer
     DisposableEffect(isMicEnabled) {
-        if (!isMicEnabled) return@DisposableEffect onDispose {}
+        if (!isMicEnabled || !micPermissionState.status.isGranted) return@DisposableEffect onDispose {}
         
-        val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-        }
-        
-        val listener = object : RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) {}
-            override fun onBeginningOfSpeech() {}
-            override fun onRmsChanged(rmsdB: Float) {}
-            override fun onBufferReceived(buffer: ByteArray?) {}
-            override fun onEndOfSpeech() {}
-            override fun onError(error: Int) {
-                if (viewModel.isMicEnabled.value) recognizer.startListening(intent)
-            }
-            override fun onResults(results: Bundle?) {
-                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                if (!matches.isNullOrEmpty()) {
-                    viewModel.sendVoiceCmd(matches[0])
+        var recognizer: SpeechRecognizer? = null
+        try {
+            if (SpeechRecognizer.isRecognitionAvailable(context)) {
+                recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                 }
-                if (viewModel.isMicEnabled.value) recognizer.startListening(intent)
+                
+                val listener = object : RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) {}
+                    override fun onBeginningOfSpeech() {}
+                    override fun onRmsChanged(rmsdB: Float) {}
+                    override fun onBufferReceived(buffer: ByteArray?) {}
+                    override fun onEndOfSpeech() {}
+                    override fun onError(error: Int) {
+                        try {
+                            if (viewModel.isMicEnabled.value) recognizer?.startListening(intent)
+                        } catch (e: Exception) {}
+                    }
+                    override fun onResults(results: Bundle?) {
+                        val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        if (!matches.isNullOrEmpty()) {
+                            viewModel.sendVoiceCmd(matches[0])
+                        }
+                        try {
+                            if (viewModel.isMicEnabled.value) recognizer?.startListening(intent)
+                        } catch (e: Exception) {}
+                    }
+                    override fun onPartialResults(partialResults: Bundle?) {}
+                    override fun onEvent(eventType: Int, params: Bundle?) {}
+                }
+                
+                recognizer?.setRecognitionListener(listener)
+                recognizer?.startListening(intent)
             }
-            override fun onPartialResults(partialResults: Bundle?) {}
-            override fun onEvent(eventType: Int, params: Bundle?) {}
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
         
-        recognizer.setRecognitionListener(listener)
-        recognizer.startListening(intent)
-        
-        onDispose { recognizer.destroy() }
+        onDispose { 
+            try {
+                recognizer?.destroy() 
+            } catch (e: Exception) {}
+        }
     }
 
     Scaffold(
