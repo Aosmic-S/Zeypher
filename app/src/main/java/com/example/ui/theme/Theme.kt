@@ -12,30 +12,40 @@ import androidx.compose.ui.platform.LocalContext
 
 import androidx.compose.ui.graphics.Color
 
-val DarkBlue = Color(0xFF1E3A8A)
-val CyanCore = Color(0xFF06B6D4)
-val CyanLight = Color(0xFF67E8F9)
-val GrayDark = Color(0xFF121212)
+val DeepOcean = Color(0xFF0F172A)
+val CyanGlow = Color(0xFF00E5FF)
+val CyanAccent = Color(0xFF00B8D4)
+val DarkSurface = Color(0xFF1E293B)
+val LightSurface = Color(0xFFF1F5F9)
 
 private val DarkColorScheme = darkColorScheme(
-    primary = CyanCore,
-    secondary = CyanLight,
-    tertiary = DarkBlue,
-    background = GrayDark,
-    surface = Color(0xFF1E1E1E)
+    primary = CyanGlow,
+    secondary = CyanAccent,
+    tertiary = Color(0xFF38BDF8),
+    background = DeepOcean,
+    surface = DarkSurface,
+    onPrimary = Color.Black,
+    onBackground = Color.White,
+    onSurface = Color.White,
+    surfaceVariant = Color(0xFF334155)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = DarkBlue,
-    secondary = CyanCore,
-    tertiary = CyanLight
+    primary = CyanAccent,
+    secondary = Color(0xFF1E3A8A),
+    tertiary = CyanGlow,
+    background = Color(0xFFF8FAFC),
+    surface = Color.White,
+    onPrimary = Color.White,
+    onBackground = DeepOcean,
+    onSurface = DeepOcean,
+    surfaceVariant = LightSurface
 )
 
 @Composable
 fun MyApplicationTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
-  // Dynamic color is available on Android 12+
-  dynamicColor: Boolean = true,
+  dynamicColor: Boolean = false,
   content: @Composable () -> Unit,
 ) {
   val colorScheme =

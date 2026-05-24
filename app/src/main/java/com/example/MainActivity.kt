@@ -33,12 +33,7 @@ class MainActivity : ComponentActivity() {
           else -> isSystemInDarkTheme()
       }
       MyApplicationTheme(darkTheme = isDarkTheme) {
-        val showSplash = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
-        if (showSplash.value) {
-            com.example.ui.IntroScreen(onFinished = { showSplash.value = false })
-        } else {
-            ZephyrScreen(viewModel = viewModel)
-        }
+        ZephyrScreen(viewModel = viewModel)
       }
     }
   }

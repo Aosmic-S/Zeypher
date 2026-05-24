@@ -44,4 +44,14 @@ interface ZephyrApi {
 
     @GET("soundCmd")
     suspend fun soundCmd(@Query("c") c: Int): Response<ResponseBody>
+
+    @GET("voice")
+    suspend fun voice(@Query("cmd") cmd: String): Response<ResponseBody>
+
+    @retrofit2.http.Multipart
+    @retrofit2.http.POST("update")
+    suspend fun updateFirmware(
+        @retrofit2.http.Header("Authorization") auth: String,
+        @retrofit2.http.Part file: okhttp3.MultipartBody.Part
+    ): Response<ResponseBody>
 }

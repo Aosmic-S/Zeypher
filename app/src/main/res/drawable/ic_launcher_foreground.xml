@@ -3,6 +3,6 @@
     <item
         android:width="66dp"
         android:height="66dp"
-        android:drawable="@drawable/zephyr_logo_1779531339078"
+        android:drawable="@drawable/zephyr_logo_new"
         android:gravity="center" />
 </layer-list>

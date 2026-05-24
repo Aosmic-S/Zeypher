@@ -14,6 +14,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
+
 sealed class ZephyrUiState {
     object Loading : ZephyrUiState()
     data class Success(val state: ZephyrState) : ZephyrUiState()
@@ -99,6 +102,34 @@ class ZephyrViewModel : ViewModel() {
                     4 -> sendSoundCmd(4)
                 }
                 clapCount = 0
+            }
+        }
+    }
+
+    fun sendVoiceCmd(cmd: String) = executeAction { ZephyrClient.api.voice(cmd) }
+
+    fun updateFirmware(context: android.content.Context, uri: android.net.Uri, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                if (bytes == null) {
+                    onResult("Could not read file")
+                    return@launch
+                }
+                
+                val mediaType = "application/octet-stream".toMediaTypeOrNull()
+                val requestFile = bytes.toRequestBody(mediaType)
+                val body = okhttp3.MultipartBody.Part.createFormData("image", "firmware.bin", requestFile)
+                val auth = okhttp3.Credentials.basic("admin", "zephyrota")
+                
+                val response = ZephyrClient.api.updateFirmware(auth, body)
+                if (response.isSuccessful) {
+                    onResult("Update successful! Device is restarting...")
+                } else {
+                    onResult("Update failed: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                onResult("Update error: ${e.message}")
             }
         }
     }

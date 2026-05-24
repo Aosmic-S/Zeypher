@@ -24,20 +24,30 @@ object AudioDetector {
             return@flow
         }
 
-        val audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
-            SAMPLE_RATE,
-            CHANNEL_CONFIG,
-            AUDIO_FORMAT,
-            bufferSize
-        )
+        val audioRecord = try {
+            AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                SAMPLE_RATE,
+                CHANNEL_CONFIG,
+                AUDIO_FORMAT,
+                bufferSize
+            )
+        } catch (e: Exception) {
+            return@flow
+        }
 
         if (audioRecord.state != AudioRecord.STATE_INITIALIZED) {
             return@flow
         }
 
         val buffer = ShortArray(bufferSize)
-        audioRecord.startRecording()
+        
+        try {
+            audioRecord.startRecording()
+        } catch (e: Exception) {
+            try { audioRecord.release() } catch (e2: Exception) {}
+            return@flow
+        }
 
         try {
             while (true) {
@@ -54,8 +64,12 @@ object AudioDetector {
                 delay(50)
             }
         } finally {
-            audioRecord.stop()
-            audioRecord.release()
+            try {
+                audioRecord.stop()
+            } catch (e: Exception) {}
+            try {
+                audioRecord.release()
+            } catch (e: Exception) {}
         }
     }.flowOn(Dispatchers.IO)
 }

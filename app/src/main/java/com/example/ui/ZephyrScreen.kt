@@ -27,6 +27,10 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.foundation.Image
+import androidx.compose.ui.unit.sp
 import com.example.api.ZephyrState
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
@@ -45,6 +49,34 @@ fun ZephyrScreen(
     
     var showIpDialog by remember { mutableStateOf(false) }
 
+    var isListening by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val speechLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        isListening = false
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val data = result.data
+            val results = data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)
+            val text = results?.firstOrNull()
+            if (!text.isNullOrEmpty()) {
+                viewModel.sendVoiceCmd(text)
+            }
+        }
+    }
+
+    var fwStatus by remember { mutableStateOf("") }
+    val pickFileLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            fwStatus = "Uploading firmware..."
+            viewModel.updateFirmware(context, uri) { result ->
+                fwStatus = result
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -56,6 +88,27 @@ fun ZephyrScreen(
                 }
             )
         },
+        floatingActionButton = {
+            if (uiState is ZephyrUiState.Success) {
+                FloatingActionButton(
+                    onClick = {
+                        val intent = android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                            putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                            putExtra(android.speech.RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+                        }
+                        try {
+                            speechLauncher.launch(intent)
+                            isListening = true
+                        } catch (e: Exception) {
+                            // Hardware might not support speech recognition
+                        }
+                    },
+                    containerColor = if (isListening) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Icon(Icons.Default.Mic, contentDescription = "Voice Command")
+                }
+            }
+        },
         modifier = modifier
     ) { innerPadding ->
         Box(
@@ -66,19 +119,62 @@ fun ZephyrScreen(
         ) {
             when (val state = uiState) {
                 is ZephyrUiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                }
-                is ZephyrUiState.Error -> {
                     Column(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Icon(Icons.Default.Warning, contentDescription = "Error", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp))
+                        Image(
+                            painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.zephyr_logo_new),
+                            contentDescription = "Zephyr Logo",
+                            modifier = Modifier.size(120.dp)
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(
+                            text = "ZEPHYR",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.primary,
+                            letterSpacing = 8.sp
+                        )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text(state.message, color = MaterialTheme.colorScheme.error)
+                        CircularProgressIndicator()
                         Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { showIpDialog = true }) {
-                            Text("Change Device IP")
+                        Text(
+                            text = "Connecting to device...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                is ZephyrUiState.Error -> {
+                    Column(
+                        modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(120.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Warning, contentDescription = "Error", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(64.dp))
+                        }
+                        Spacer(modifier = Modifier.height(32.dp))
+                        Text("Connection Lost", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Cannot reach the Zephyr cooler at\n${ipAddress.removePrefix("http://").removeSuffix("/")}",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(32.dp))
+                        OutlinedButton(
+                            onClick = { showIpDialog = true },
+                            modifier = Modifier.fillMaxWidth(0.7f).height(56.dp)
+                        ) {
+                            Text("Configure IP Address", style = MaterialTheme.typography.titleSmall)
                         }
                     }
                 }
@@ -88,7 +184,10 @@ fun ZephyrScreen(
                         viewModel = viewModel,
                         micPermissionState = micPermissionState,
                         isMicEnabled = isMicEnabled,
-                        appTheme = appTheme
+                        appTheme = appTheme,
+                        fwStatus = fwStatus,
+                        pickFileLauncher = pickFileLauncher,
+                        onFirmwareError = { err -> fwStatus = err }
                     )
                 }
             }
@@ -132,7 +231,10 @@ fun DashboardContent(
     viewModel: ZephyrViewModel,
     micPermissionState: com.google.accompanist.permissions.PermissionState,
     isMicEnabled: Boolean,
-    appTheme: String
+    appTheme: String,
+    fwStatus: String,
+    pickFileLauncher: androidx.activity.compose.ManagedActivityResultLauncher<String, android.net.Uri?>,
+    onFirmwareError: (String) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -157,8 +259,16 @@ fun DashboardContent(
                 isMicEnabled = isMicEnabled,
                 appTheme = appTheme,
                 micPermissionState = micPermissionState,
+                fwStatus = fwStatus,
                 onMicChange = { viewModel.setMicEnabled(it) },
-                onThemeChange = { viewModel.setTheme(it) }
+                onThemeChange = { viewModel.setTheme(it) },
+                onUploadFirmwareClick = { 
+                    try {
+                        pickFileLauncher.launch("*/*") 
+                    } catch (e: Exception) {
+                        onFirmwareError("No file picker available on this device")
+                    }
+                }
             )
         }
 
@@ -275,8 +385,10 @@ fun AppSettingsCard(
     isMicEnabled: Boolean,
     appTheme: String,
     micPermissionState: com.google.accompanist.permissions.PermissionState,
+    fwStatus: String,
     onMicChange: (Boolean) -> Unit,
-    onThemeChange: (String) -> Unit
+    onThemeChange: (String) -> Unit,
+    onUploadFirmwareClick: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column {
@@ -332,6 +444,23 @@ fun AppSettingsCard(
                         onClick = { onThemeChange("dark") },
                         label = { Text("Dark") }
                     )
+                }
+            }
+            
+            HorizontalDivider()
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .clickable { onUploadFirmwareClick() },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Firmware Update (OTA)", fontWeight = FontWeight.Medium)
+                    Text(if (fwStatus.isNotEmpty()) fwStatus else "Select .bin file to upload", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
