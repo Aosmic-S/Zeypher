@@ -24,6 +24,14 @@ class MainActivity : ComponentActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+      try {
+        val file = java.io.File(cacheDir, "crash_log.txt")
+        file.appendText("Crash in ${thread.name}: ${throwable.message}\n${throwable.stackTraceToString()}\n")
+      } catch (e: Exception) {}
+      throwable.printStackTrace()
+      kotlin.system.exitProcess(1)
+    }
     enableEdgeToEdge()
     setContent {
       val appTheme by viewModel.appTheme.collectAsStateWithLifecycle()
@@ -33,7 +41,12 @@ class MainActivity : ComponentActivity() {
           else -> isSystemInDarkTheme()
       }
       MyApplicationTheme(darkTheme = isDarkTheme) {
-        ZephyrScreen(viewModel = viewModel)
+        val showSplash = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
+        if (showSplash.value) {
+            com.example.ui.IntroScreen(onFinished = { showSplash.value = false })
+        } else {
+            ZephyrScreen(viewModel = viewModel)
+        }
       }
     }
   }
