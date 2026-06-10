@@ -36,9 +36,6 @@ interface ZephyrApi {
     @GET("setTime")
     suspend fun setTime(@Query("h") h: Int, @Query("m") m: Int, @Query("s") s: Int): Response<ResponseBody>
 
-    @GET("setTankH")
-    suspend fun setTankH(@Query("v") v: Float): Response<ResponseBody>
-
     @GET("setBrightness")
     suspend fun setBrightness(@Query("v") v: Int): Response<ResponseBody>
 
@@ -59,6 +56,12 @@ interface ZephyrApi {
 
     @GET("events")
     suspend fun getEvents(): Response<ResponseBody>
+
+    @GET("setWaterBypass")
+    suspend fun setWaterBypass(@Query("on") on: Int): Response<ResponseBody>
+
+    @GET("setNightMode")
+    suspend fun setNightMode(@Query("en") en: Int): Response<ResponseBody>
 
     @retrofit2.http.Multipart
     @retrofit2.http.POST("update")

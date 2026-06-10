@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -370,7 +371,30 @@ fun LedEngineContent(state: ZephyrState, viewModel: ZephyrViewModel) {
                     Text("Select Effect", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    val anims = listOf("Smart (Zephyr Sync)" to 0, "Breathe" to 1, "Rainbow" to 2, "Shimmer" to 3, "Fire" to 4, "Static Colors" to 5)
+                    val anims = listOf(
+                        "Smart (Zephyr Sync)" to 0, 
+                        "Breathe" to 1, 
+                        "Rainbow" to 2, 
+                        "Shimmer" to 3, 
+                        "Fire" to 4, 
+                        "Static Colors" to 5,
+                        "Ocean Waves" to 6,
+                        "Forest Breeze" to 7,
+                        "Sunset Glow" to 8,
+                        "Aurora Borealis" to 9,
+                        "Matrix Rain" to 10,
+                        "Pulsing Heart" to 11,
+                        "Strobe Light" to 12,
+                        "Color Wipe" to 13,
+                        "Theater Chase" to 14,
+                        "Comet Trail" to 15,
+                        "Sparkle Fade" to 16,
+                        "Color Bounce" to 17,
+                        "Twinkle Stars" to 18,
+                        "Plasma" to 19,
+                        "Cyberpunk City" to 20,
+                        "Deep Sleep" to 21
+                    )
                     anims.forEach { (name, v) ->
                         Row(
                             modifier = Modifier.fillMaxWidth().clickable { selectedAnim = v }.padding(vertical = 4.dp),
@@ -499,6 +523,38 @@ fun SettingsContent(
                             Text(if (fwStatus.isNotEmpty()) fwStatus else "Select .bin file to upload", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
+                    HorizontalDivider()
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Ignore Water Sensor", fontWeight = FontWeight.Medium)
+                            Text("Bypass water level tracking checks", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = state.waterBypass,
+                            onCheckedChange = { viewModel.setWaterBypass(it) }
+                        )
+                    }
+                    HorizontalDivider()
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.NightsStay, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Night Mode Auto-Schedule", fontWeight = FontWeight.Medium)
+                            Text("Dims LEDs and shifts to sleep color animations around 10 PM", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = state.nightMode,
+                            onCheckedChange = { viewModel.setNightMode(it) }
+                        )
+                    }
                 }
             }
         }
@@ -507,8 +563,7 @@ fun SettingsContent(
                 state = state,
                 onTempChange = { viewModel.setTempThresh(it) },
                 onHumChange = { viewModel.setHumThresh(it) },
-                onBrightnessChange = { viewModel.setBrightness(it) },
-                onTankDepthChange = { viewModel.setTankH(it) }
+                onBrightnessChange = { viewModel.setBrightness(it) }
             )
         }
     }
@@ -633,10 +688,14 @@ fun WaterCard(state: ZephyrState, onPumpToggle: (Boolean) -> Unit) {
             LinearProgressIndicator(
                 progress = { (state.water / 100f).coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth().height(12.dp).clip(CircleShape),
-                color = if (state.water < 15) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
+                color = if (state.water == 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
             )
             Spacer(modifier = Modifier.height(12.dp))
-            Text("Proximity Map: ${if (state.dist > 0) String.format("%.1f cm", state.dist) else "--"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Low Probe", color = if (state.probeLow) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = if (state.probeLow) FontWeight.Bold else FontWeight.Normal)
+                Text("Mid Probe", color = if (state.probeMid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = if (state.probeMid) FontWeight.Bold else FontWeight.Normal)
+                Text("High Probe", color = if (state.probeHigh) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = if (state.probeHigh) FontWeight.Bold else FontWeight.Normal)
+            }
         }
         HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -655,8 +714,7 @@ fun ThresholdsCard(
     state: ZephyrState,
     onTempChange: (Float) -> Unit,
     onHumChange: (Int) -> Unit,
-    onBrightnessChange: (Int) -> Unit,
-    onTankDepthChange: (Float) -> Unit
+    onBrightnessChange: (Int) -> Unit
 ) {
     ElevatedCard(shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -681,13 +739,6 @@ fun ThresholdsCard(
             }
             Text("(pause above)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Slider(value = state.humTh.toFloat(), onValueChange = { onHumChange(it.toInt()) }, valueRange = 40f..95f, steps = 54)
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Empty Tank Depth", fontWeight = FontWeight.Medium)
-                Text("${String.format("%.1f cm", state.tankH)}", color = MaterialTheme.colorScheme.secondary)
-            }
-            Slider(value = state.tankH, onValueChange = onTankDepthChange, valueRange = 5f..100f)
         }
     }
 }
@@ -753,32 +804,31 @@ fun DataContent(historyJson: String, eventsJson: String, onRefresh: () -> Unit) 
                     
                     val eventsArray = remember(eventsJson) {
                         try {
-                            org.json.JSONArray(eventsJson)
+                            org.json.JSONObject(eventsJson).optJSONArray("events") ?: org.json.JSONArray()
                         } catch (e: Exception) {
-                            null
+                            org.json.JSONArray()
                         }
                     }
                     
-                    if (eventsArray == null) {
-                        Text("Error parsing events.", color = MaterialTheme.colorScheme.error)
-                        Text(eventsJson, style = MaterialTheme.typography.bodySmall)
-                    } else if (eventsArray.length() == 0) {
+                    if (eventsArray.length() == 0) {
                         Text("No events recorded yet.", style = MaterialTheme.typography.bodyMedium)
                     } else {
                         for (i in 0 until eventsArray.length()) {
                             val ev = eventsArray.optJSONObject(i)
                             if (ev != null) {
-                                val time = ev.optLong("time", ev.optLong("t", 0L))
-                                val dev = ev.optString("device", ev.optString("dev", "unknown"))
-                                val state = ev.optInt("state", ev.optInt("s", -1))
-                                val reason = ev.optString("reason", ev.optString("r", "unknown"))
+                                val hr = ev.optInt("hr", 0)
+                                val mn = ev.optInt("mn", 0)
+                                val sc = ev.optInt("sc", 0)
+                                val dev = ev.optString("dev", "unknown")
+                                val state = ev.optString("state", "unknown")
+                                val reason = ev.optString("reason", "unknown")
                                 
-                                val timeStr = if (time > 0) java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(time * 1000)) else "--:--"
-                                val stateStr = if (state == 1) "ON" else if (state == 0) "OFF" else state.toString()
+                                val timeStr = String.format("%02d:%02d:%02d", hr, mn, sc)
+                                val stateStr = state.uppercase()
                                 
                                 Column(modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth()) {
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text(dev.uppercase() + " -> " + stateStr, fontWeight = FontWeight.Bold, color = if (state == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                                        Text(dev.uppercase() + " -> " + stateStr, fontWeight = FontWeight.Bold, color = if (state == "on") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
                                         Text(timeStr, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     Text("Triggered by: $reason", style = MaterialTheme.typography.bodySmall)
@@ -801,26 +851,24 @@ fun DataContent(historyJson: String, eventsJson: String, onRefresh: () -> Unit) 
                     
                     val histArray = remember(historyJson) {
                         try {
-                            org.json.JSONArray(historyJson)
+                            org.json.JSONObject(historyJson).optJSONArray("history") ?: org.json.JSONArray()
                         } catch (e: Exception) {
-                            null
+                            org.json.JSONArray()
                         }
                     }
                     
-                    if (histArray == null) {
-                        Text("Error parsing history.", color = MaterialTheme.colorScheme.error)
-                        Text(historyJson, style = MaterialTheme.typography.bodySmall)
-                    } else if (histArray.length() == 0) {
-                        Text("No history data yet.", style = MaterialTheme.typography.bodyMedium)
+                    if (histArray.length() == 0) {
+                        Text("No history available yet.", style = MaterialTheme.typography.bodyMedium)
                     } else {
                         for (i in 0 until histArray.length()) {
                             val item = histArray.optJSONObject(i)
                             if (item != null) {
-                                val time = item.optLong("time", item.optLong("t_stamp", 0L))
-                                val temp = item.optDouble("temp", item.optDouble("t", 0.0))
-                                val hum = item.optDouble("hum", item.optDouble("h", 0.0))
+                                val hr = item.optInt("hr", 0)
+                                val mn = item.optInt("mn", 0)
+                                val temp = item.optDouble("t", 0.0)
+                                val hum = item.optDouble("h", 0.0)
                                 
-                                val timeStr = if (time > 0) java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(time * 1000)) else "--:--"
+                                val timeStr = String.format("%02d:%02d", hr, mn)
                                 
                                 Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text(timeStr, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))

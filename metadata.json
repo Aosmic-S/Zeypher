@@ -1,5 +1,5 @@
 {
-  "name": "Zephyr Cooler",
+  "name": "Max Systems",
   "description": "Smart IoT cooler controller dashboard",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

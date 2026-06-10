@@ -1,6 +1,8 @@
 package com.example.ui
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.content.Context
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.api.ZephyrClient
 import com.example.api.ZephyrState
@@ -23,11 +25,13 @@ sealed class ZephyrUiState {
     data class Error(val message: String) : ZephyrUiState()
 }
 
-class ZephyrViewModel : ViewModel() {
+class ZephyrViewModel(application: Application) : AndroidViewModel(application) {
+    private val prefs = application.getSharedPreferences("ZephyrPrefs", Context.MODE_PRIVATE)
+
     private val _uiState = MutableStateFlow<ZephyrUiState>(ZephyrUiState.Loading)
     val uiState = _uiState.asStateFlow()
 
-    private val _ipAddress = MutableStateFlow(ZephyrClient.currentBaseUrl)
+    private val _ipAddress = MutableStateFlow(prefs.getString("ip_address", "192.168.4.1") ?: "192.168.4.1")
     val ipAddress = _ipAddress.asStateFlow()
 
     private val _isMicEnabled = MutableStateFlow(false)
@@ -36,13 +40,15 @@ class ZephyrViewModel : ViewModel() {
     private val _appTheme = MutableStateFlow("auto")
     val appTheme = _appTheme.asStateFlow()
 
-    private val _historyJson = MutableStateFlow("[]")
+    private val _historyJson = MutableStateFlow("{\"history\":[],\"count\":0}")
     val historyJson = _historyJson.asStateFlow()
 
-    private val _eventsJson = MutableStateFlow("[]")
+    private val _eventsJson = MutableStateFlow("{\"events\":[],\"count\":0}")
     val eventsJson = _eventsJson.asStateFlow()
 
     init {
+        val savedIp = prefs.getString("ip_address", "192.168.4.1") ?: "192.168.4.1"
+        ZephyrClient.updateBaseUrl(savedIp)
         startPolling()
     }
 
@@ -57,15 +63,16 @@ class ZephyrViewModel : ViewModel() {
                         _uiState.update { ZephyrUiState.Error(e.message ?: "Failed to connect to device") }
                     }
                 }
-                delay(2000)
+                delay(1000)
             }
         }
     }
 
     fun updateIpAddress(ip: String) {
         val cleaned = ip.trim()
+        prefs.edit().putString("ip_address", cleaned).apply()
         ZephyrClient.updateBaseUrl(cleaned)
-        _ipAddress.update { ZephyrClient.currentBaseUrl }
+        _ipAddress.update { cleaned }
         _uiState.update { ZephyrUiState.Loading } 
     }
 
@@ -131,7 +138,6 @@ class ZephyrViewModel : ViewModel() {
 
     fun setTempThresh(v: Float) = executeAction { ZephyrClient.api.setTempThresh(v) }
     fun setHumThresh(v: Int) = executeAction { ZephyrClient.api.setHumThresh(v) }
-    fun setTankH(v: Float) = executeAction { ZephyrClient.api.setTankH(v) }
     fun setMode(mode: String) = executeAction { ZephyrClient.api.setMode(mode) }
     fun setFan(on: Boolean) = executeAction { ZephyrClient.api.setFan(if (on) 1 else 0) }
     fun setPump(on: Boolean) = executeAction { ZephyrClient.api.setPump(if (on) 1 else 0) }
@@ -139,6 +145,8 @@ class ZephyrViewModel : ViewModel() {
     fun setBrightness(v: Int) = executeAction { ZephyrClient.api.setBrightness(v) }
     fun setEffect(v: Int) = executeAction { ZephyrClient.api.setEffect(v) }
     fun setSingleLed(idx: Int, r: Int, g: Int, b: Int) = executeAction { ZephyrClient.api.setSingleLed(idx, r, g, b) }
+    fun setWaterBypass(on: Boolean) = executeAction { ZephyrClient.api.setWaterBypass(if (on) 1 else 0) }
+    fun setNightMode(en: Boolean) = executeAction { ZephyrClient.api.setNightMode(if (en) 1 else 0) }
 
     private fun executeAction(action: suspend () -> Unit) {
         viewModelScope.launch {
