@@ -12,6 +12,7 @@ data class ZephyrState(
     val pump: Boolean = false,
     val mode: String = "auto",
     val tempTh: Float = 30.0f,
+    val effTh: Float = 30.0f,
     val humTh: Int = 75,
     val br: Int = 80,
     val waterLow: Boolean = false,

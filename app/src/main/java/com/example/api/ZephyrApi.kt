@@ -48,8 +48,17 @@ interface ZephyrApi {
     @GET("voice")
     suspend fun voice(@Query("cmd") cmd: String): Response<ResponseBody>
 
+    @GET("setEffect")
+    suspend fun setEffect(@Query("v") v: Int): Response<ResponseBody>
+
     @GET("setLed")
-    suspend fun setLed(@Query("anim") anim: String, @Query("r") r: Int, @Query("g") g: Int, @Query("b") b: Int, @Query("func") func: String = ""): Response<ResponseBody>
+    suspend fun setSingleLed(@Query("idx") idx: Int, @Query("r") r: Int, @Query("g") g: Int, @Query("b") b: Int): Response<ResponseBody>
+
+    @GET("history")
+    suspend fun getHistory(): Response<ResponseBody>
+
+    @GET("events")
+    suspend fun getEvents(): Response<ResponseBody>
 
     @retrofit2.http.Multipart
     @retrofit2.http.POST("update")

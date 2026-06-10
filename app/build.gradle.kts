@@ -1,3 +1,5 @@
+import java.net.URL
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
@@ -6,6 +8,15 @@ plugins {
   alias(libs.plugins.secrets)
 }
 
+tasks.register("dlLogo") {
+    doLast {
+        URL("https://raw.githubusercontent.com/Aosmic-S/Zeypher/main/1781078304778.png").openStream().use { input ->
+            file("src/main/res/drawable-nodpi/zephyr_logo_new.png").outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+    }
+}
 android {
   namespace = "com.example"
   compileSdk { version = release(36) { minorApiLevel = 1 } }

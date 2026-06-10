@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SettingsEthernet
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -124,8 +125,13 @@ fun ZephyrScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Zephyr Cooler", fontWeight = FontWeight.Bold) },
+            CenterAlignedTopAppBar(
+                title = { 
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("MAX OS", fontWeight = FontWeight.Black, letterSpacing = 2.sp, style = MaterialTheme.typography.titleMedium)
+                        Text("Zephyr System", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } 
+                },
                 actions = {
                     IconButton(onClick = { showIpDialog = true }) {
                         Icon(Icons.Default.SettingsEthernet, contentDescription = "IP Config")
@@ -160,6 +166,16 @@ fun ZephyrScreen(
                         icon = { Icon(Icons.Default.List, contentDescription = "Guide") },
                         label = { Text("Guide") }
                     )
+                    NavigationBarItem(
+                        selected = currentTab == 4,
+                        onClick = { 
+                            currentTab = 4
+                            viewModel.fetchEvents()
+                            viewModel.fetchHistory()
+                        },
+                        icon = { Icon(Icons.Default.Analytics, contentDescription = "Data") },
+                        label = { Text("Data") }
+                    )
                 }
             }
         },
@@ -177,14 +193,8 @@ fun ZephyrScreen(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        AsyncImage(
-                            model = R.drawable.zephyr_logo_new,
-                            contentDescription = "Zephyr Logo",
-                            modifier = Modifier.size(120.dp)
-                        )
-                        Spacer(modifier = Modifier.height(24.dp))
                         Text(
-                            text = "ZEPHYR",
+                            text = "MAX OS",
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.primary,
@@ -247,6 +257,14 @@ fun ZephyrScreen(
                                 viewModel = viewModel
                              )
                         3 -> GuideContent()
+                        4 -> DataContent(
+                                historyJson = viewModel.historyJson.collectAsStateWithLifecycle().value,
+                                eventsJson = viewModel.eventsJson.collectAsStateWithLifecycle().value,
+                                onRefresh = { 
+                                    viewModel.fetchHistory()
+                                    viewModel.fetchEvents() 
+                                }
+                             )
                     }
                 }
             }
@@ -306,7 +324,7 @@ fun DashboardContent(state: ZephyrState, viewModel: ZephyrViewModel) {
                     "sched" -> MaterialTheme.colorScheme.tertiaryContainer
                     else -> MaterialTheme.colorScheme.errorContainer
                 }
-                Card(colors = CardDefaults.cardColors(containerColor = color), modifier = Modifier.fillMaxWidth()) {
+                ElevatedCard(shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = color), modifier = Modifier.fillMaxWidth()) {
                     Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Warning, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
@@ -323,16 +341,16 @@ fun DashboardContent(state: ZephyrState, viewModel: ZephyrViewModel) {
 
 @Composable
 fun LedEngineContent(state: ZephyrState, viewModel: ZephyrViewModel) {
-    var selectedAnim by remember { mutableStateOf("solid") }
+    var selectedAnim by remember { mutableIntStateOf(0) }
     var red by remember { mutableFloatStateOf(0f) }
     var green by remember { mutableFloatStateOf(0f) }
     var blue by remember { mutableFloatStateOf(255f) }
-    var targetFunc by remember { mutableStateOf("none") }
+    var ledIdx by remember { mutableIntStateOf(0) }
     
     LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)) {
         item {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
+            ElevatedCard(shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp)) {
                     Text("Current Status", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(16.dp))
                     LedStrip(leds = state.leds)
@@ -347,21 +365,44 @@ fun LedEngineContent(state: ZephyrState, viewModel: ZephyrViewModel) {
             }
         }
         item {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("LED Animation Engine", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            ElevatedCard(shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text("Select Effect", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    Text("Select Animation", fontWeight = FontWeight.Medium)
-                    val anims = listOf("solid", "breath", "spiral", "rainbow", "fade")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
-                        anims.chunked(3).first().forEach { a ->
-                            FilterChip(selected = selectedAnim == a, onClick = { selectedAnim = a }, label = { Text(a.replaceFirstChar { it.uppercase() }) })
+                    val anims = listOf("Smart (Zephyr Sync)" to 0, "Breathe" to 1, "Rainbow" to 2, "Shimmer" to 3, "Fire" to 4, "Static Colors" to 5)
+                    anims.forEach { (name, v) ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clickable { selectedAnim = v }.padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = selectedAnim == v, onClick = { selectedAnim = v })
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(name, fontWeight = FontWeight.Medium)
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
-                        anims.chunked(3).getOrNull(1)?.forEach { a ->
-                            FilterChip(selected = selectedAnim == a, onClick = { selectedAnim = a }, label = { Text(a.replaceFirstChar { it.uppercase() }) })
+                    
+                    Button(
+                        onClick = { viewModel.setEffect(selectedAnim) },
+                        modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+                    ) {
+                        Text("Apply Effect")
+                    }
+                }
+            }
+        }
+        item {
+            ElevatedCard(shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text("Static LED Colors", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Set individual LEDs to specific colors (switches to Static mode automatically).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text("Select LED", fontWeight = FontWeight.Medium)
+                    val leds = listOf(0 to "Target", 1 to "LED 1", 2 to "LED 2", 3 to "LED 3")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
+                        leds.forEach { (i, n) ->
+                            FilterChip(selected = ledIdx == i, onClick = { ledIdx = i }, label = { Text(n) })
                         }
                     }
                     
@@ -380,25 +421,11 @@ fun LedEngineContent(state: ZephyrState, viewModel: ZephyrViewModel) {
                         Slider(value = blue, onValueChange = { blue = it }, valueRange = 0f..255f, modifier = Modifier.weight(1f))
                     }
                     
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                    Text("Assign to Function", fontWeight = FontWeight.Medium)
-                    val funcs = listOf("none", "cooling", "idle", "water_low")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
-                        funcs.take(2).forEach { f ->
-                            FilterChip(selected = targetFunc == f, onClick = { targetFunc = f }, label = { Text(f) })
-                        }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
-                        funcs.drop(2).forEach { f ->
-                            FilterChip(selected = targetFunc == f, onClick = { targetFunc = f }, label = { Text(f) })
-                        }
-                    }
-                    
                     Button(
-                        onClick = { viewModel.setLed(selectedAnim, red.toInt(), green.toInt(), blue.toInt(), targetFunc) },
+                        onClick = { viewModel.setSingleLed(ledIdx, red.toInt(), green.toInt(), blue.toInt()) },
                         modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
                     ) {
-                        Text("Apply Settings")
+                        Text("Set Color")
                     }
                 }
             }
@@ -421,7 +448,7 @@ fun SettingsContent(
 ) {
     LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)) {
         item {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            ElevatedCard(shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
                 Column {
                     Text("App Settings", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(16.dp))
                     Row(
@@ -529,27 +556,30 @@ fun LedDot(hex: String) {
 
 @Composable
 fun ModeControl(currentMode: String, onModeChange: (String) -> Unit) {
-    Card {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Mode", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    ElevatedCard(shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text("Mode Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 OutlinedButton(
                     onClick = { onModeChange("auto") },
                     modifier = Modifier.weight(1f),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.outlinedButtonColors(containerColor = if (currentMode == "auto") MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
                 ) { Text("Auto") }
                 OutlinedButton(
                     onClick = { onModeChange("on") },
                     modifier = Modifier.weight(1f),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.outlinedButtonColors(containerColor = if (currentMode == "on") MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
                 ) { Text("On") }
                 OutlinedButton(
                     onClick = { onModeChange("off") },
                     modifier = Modifier.weight(1f),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.outlinedButtonColors(containerColor = if (currentMode == "off") MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
                 ) { Text("Off") }
             }
@@ -559,29 +589,29 @@ fun ModeControl(currentMode: String, onModeChange: (String) -> Unit) {
 
 @Composable
 fun EnvironmentCard(state: ZephyrState, onFanToggle: (Boolean) -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ElevatedCard(shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
         Column {
-            Text("Environment", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(16.dp))
+            Text("Environment Analytics", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, modifier = Modifier.padding(20.dp))
             Row(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    Text("${String.format("%.1f", state.temp)}°", style = MaterialTheme.typography.displayMedium)
-                    Text("Temperature", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(modifier = Modifier.weight(1f).padding(horizontal = 20.dp, vertical = 8.dp)) {
+                    Text("${String.format("%.1f", state.temp)}°", style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Light, color = MaterialTheme.colorScheme.primary)
+                    Text("Temperature", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    Text("${state.hum.toInt()}%", style = MaterialTheme.typography.displayMedium)
-                    Text("Humidity", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(modifier = Modifier.weight(1f).padding(horizontal = 20.dp, vertical = 8.dp)) {
+                    Text("${state.hum.toInt()}%", style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Light, color = MaterialTheme.colorScheme.primary)
+                    Text("Humidity", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            HorizontalDivider()
-            Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(if (state.fan) "Fan On" else "Fan Off", fontWeight = FontWeight.Medium)
+                    Text(if (state.fan) "Fan Status: Running" else "Fan Status: Stopped", fontWeight = FontWeight.Bold)
                     val statusText = if (state.mode == "auto") {
-                        if (state.fan) "Auto · Running" else (if (state.pause.isNotEmpty()) "Auto · Paused" else "Auto · Standby")
+                        if (state.fan) "Auto · Active" else (if (state.pause.isNotEmpty()) "Auto · Interrupted" else "Auto · Idling")
                     } else {
-                        if (state.mode == "off") "Manual · Forced Off" else "Manual · Forced On"
+                        if (state.mode == "off") "Manual Override · Off" else "Manual Override · On"
                     }
-                    Text(statusText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(statusText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Switch(checked = state.fan, onCheckedChange = { if (state.mode != "auto") onFanToggle(it) }, enabled = state.mode != "auto")
             }
@@ -591,29 +621,29 @@ fun EnvironmentCard(state: ZephyrState, onFanToggle: (Boolean) -> Unit) {
 
 @Composable
 fun WaterCard(state: ZephyrState, onPumpToggle: (Boolean) -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Water System", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(16.dp))
+    ElevatedCard(shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text("Hydration Level", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+            Spacer(modifier = Modifier.height(20.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Tank Capacity", style = MaterialTheme.typography.bodyMedium)
-                Text("${state.water}%", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Tank Resource", style = MaterialTheme.typography.bodyMedium)
+                Text("${state.water}%", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             LinearProgressIndicator(
                 progress = { (state.water / 100f).coerceIn(0f, 1f) },
-                modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
-                color = if (state.water < 15) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxWidth().height(12.dp).clip(CircleShape),
+                color = if (state.water < 15) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Sensor Distance: ${if (state.dist > 0) String.format("%.1f cm", state.dist) else "--"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("Proximity Map: ${if (state.dist > 0) String.format("%.1f cm", state.dist) else "--"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        HorizontalDivider()
-        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
+        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Pump", fontWeight = FontWeight.Medium)
-                val statusText = if (state.mode == "auto") "Follows fan (auto)" else (if (state.pump) "Pump on" else "Pump off")
-                Text(statusText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Distribution Pump", fontWeight = FontWeight.Bold)
+                val statusText = if (state.mode == "auto") "Algorithmic Control" else (if (state.pump) "Pump Operating" else "Pump Idle")
+                Text(statusText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Switch(checked = state.pump, onCheckedChange = { if (state.mode != "auto") onPumpToggle(it) }, enabled = state.mode != "auto")
         }
@@ -628,21 +658,26 @@ fun ThresholdsCard(
     onBrightnessChange: (Int) -> Unit,
     onTankDepthChange: (Float) -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
+    ElevatedCard(shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Text("Thresholds", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             
             Spacer(modifier = Modifier.height(24.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Temperature Trigger", fontWeight = FontWeight.Medium)
-                Text("${String.format("%.1f", state.tempTh)}°C", color = MaterialTheme.colorScheme.primary)
+                Text("Base Target Temp (${String.format("%.1f", state.tempTh)}°C)", fontWeight = FontWeight.Medium)
+                Text(
+                    text = "Effective: ${String.format("%.1f", state.effTh)}°C", 
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
             }
+            Text("Auto mode adjusts threshold by ±2°C based on outdoor weather.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Slider(value = state.tempTh, onValueChange = onTempChange, valueRange = 20f..40f, steps = 39)
             
             Spacer(modifier = Modifier.height(16.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Humidity Limit", fontWeight = FontWeight.Medium)
-                Text("${state.humTh}%", color = MaterialTheme.colorScheme.primary)
+                Text("${state.humTh}%", color = MaterialTheme.colorScheme.tertiary)
             }
             Text("(pause above)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Slider(value = state.humTh.toFloat(), onValueChange = { onHumChange(it.toInt()) }, valueRange = 40f..95f, steps = 54)
@@ -650,7 +685,7 @@ fun ThresholdsCard(
             Spacer(modifier = Modifier.height(16.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Empty Tank Depth", fontWeight = FontWeight.Medium)
-                Text("${String.format("%.1f cm", state.tankH)}", color = MaterialTheme.colorScheme.primary)
+                Text("${String.format("%.1f cm", state.tankH)}", color = MaterialTheme.colorScheme.secondary)
             }
             Slider(value = state.tankH, onValueChange = onTankDepthChange, valueRange = 5f..100f)
         }
@@ -665,8 +700,8 @@ fun GuideContent() {
         modifier = Modifier.fillMaxSize()
     ) {
         item {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
+            ElevatedCard(shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp)) {
                     Text("Voice Commands Guide", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("Here is a list of words you can say when voice command is enabled:", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -697,4 +732,109 @@ fun GuideContent() {
         }
     }
 }
+
+@Composable
+fun DataContent(historyJson: String, eventsJson: String, onRefresh: () -> Unit) {
+    LazyColumn(
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        item {
+            ElevatedCard(shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text("ON/OFF Event Log", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        TextButton(onClick = onRefresh) { Text("Refresh") }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Last 20 operations.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    val eventsArray = remember(eventsJson) {
+                        try {
+                            org.json.JSONArray(eventsJson)
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    
+                    if (eventsArray == null) {
+                        Text("Error parsing events.", color = MaterialTheme.colorScheme.error)
+                        Text(eventsJson, style = MaterialTheme.typography.bodySmall)
+                    } else if (eventsArray.length() == 0) {
+                        Text("No events recorded yet.", style = MaterialTheme.typography.bodyMedium)
+                    } else {
+                        for (i in 0 until eventsArray.length()) {
+                            val ev = eventsArray.optJSONObject(i)
+                            if (ev != null) {
+                                val time = ev.optLong("time", ev.optLong("t", 0L))
+                                val dev = ev.optString("device", ev.optString("dev", "unknown"))
+                                val state = ev.optInt("state", ev.optInt("s", -1))
+                                val reason = ev.optString("reason", ev.optString("r", "unknown"))
+                                
+                                val timeStr = if (time > 0) java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(time * 1000)) else "--:--"
+                                val stateStr = if (state == 1) "ON" else if (state == 0) "OFF" else state.toString()
+                                
+                                Column(modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth()) {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text(dev.uppercase() + " -> " + stateStr, fontWeight = FontWeight.Bold, color = if (state == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                                        Text(timeStr, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Text("Triggered by: $reason", style = MaterialTheme.typography.bodySmall)
+                                }
+                                if (i < eventsArray.length() - 1) HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        item {
+            ElevatedCard(shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text("Temperature History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Last 96 minutes (2-min intervals).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    val histArray = remember(historyJson) {
+                        try {
+                            org.json.JSONArray(historyJson)
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    
+                    if (histArray == null) {
+                        Text("Error parsing history.", color = MaterialTheme.colorScheme.error)
+                        Text(historyJson, style = MaterialTheme.typography.bodySmall)
+                    } else if (histArray.length() == 0) {
+                        Text("No history data yet.", style = MaterialTheme.typography.bodyMedium)
+                    } else {
+                        for (i in 0 until histArray.length()) {
+                            val item = histArray.optJSONObject(i)
+                            if (item != null) {
+                                val time = item.optLong("time", item.optLong("t_stamp", 0L))
+                                val temp = item.optDouble("temp", item.optDouble("t", 0.0))
+                                val hum = item.optDouble("hum", item.optDouble("h", 0.0))
+                                
+                                val timeStr = if (time > 0) java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(time * 1000)) else "--:--"
+                                
+                                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text(timeStr, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                                    Text(String.format("%.1f°C", temp), fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                    Text("${hum.toInt()}%", modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.End)
+                                }
+                                if (i < histArray.length() - 1) HorizontalDivider(thickness = 0.5.dp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 

@@ -1,65 +1,80 @@
 package com.example.ui
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import com.example.R
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun IntroScreen(onFinished: () -> Unit) {
-    val alpha = remember { Animatable(0f) }
+    val alphaAnim = remember { Animatable(0f) }
+    val scaleAnim = remember { Animatable(0.95f) }
     
     LaunchedEffect(Unit) {
-        alpha.animateTo(1f, animationSpec = tween(1000))
-        delay(1500)
-        alpha.animateTo(0f, animationSpec = tween(500))
+        launch {
+            scaleAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(1200, easing = FastOutSlowInEasing)
+            )
+        }
+        launch {
+            alphaAnim.animateTo(1f, animationSpec = tween(1000))
+        }
+        delay(1800)
+        alphaAnim.animateTo(0f, animationSpec = tween(600))
         onFinished()
     }
     
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(MaterialTheme.colorScheme.surface),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.alpha(alpha.value)
+            modifier = Modifier
+                .alpha(alphaAnim.value)
+                .scale(scaleAnim.value)
         ) {
-            AsyncImage(
-                model = R.drawable.zephyr_logo_new,
-                contentDescription = "Zephyr Logo",
-                modifier = Modifier.size(160.dp)
-            )
-            Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "ZEPHYR",
-                style = MaterialTheme.typography.headlineLarge,
+                text = "MAX OS",
+                style = MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.Black,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.onSurface,
                 letterSpacing = 12.sp
             )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "v1.7",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Light,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                letterSpacing = 6.sp
+            )
         }
+        
+        Text(
+            text = "Aosmic Studio",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            letterSpacing = 4.sp,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 64.dp)
+                .alpha(alphaAnim.value)
+        )
     }
 }

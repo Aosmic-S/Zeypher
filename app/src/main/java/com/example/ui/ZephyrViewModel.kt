@@ -36,6 +36,12 @@ class ZephyrViewModel : ViewModel() {
     private val _appTheme = MutableStateFlow("auto")
     val appTheme = _appTheme.asStateFlow()
 
+    private val _historyJson = MutableStateFlow("[]")
+    val historyJson = _historyJson.asStateFlow()
+
+    private val _eventsJson = MutableStateFlow("[]")
+    val eventsJson = _eventsJson.asStateFlow()
+
     init {
         startPolling()
     }
@@ -69,6 +75,28 @@ class ZephyrViewModel : ViewModel() {
 
     fun setMicEnabled(enabled: Boolean) {
         _isMicEnabled.update { enabled }
+    }
+
+    fun fetchHistory() {
+        viewModelScope.launch {
+            try {
+                val res = ZephyrClient.api.getHistory()
+                if (res.isSuccessful) {
+                    res.body()?.string()?.let { _historyJson.update { _ -> it } }
+                }
+            } catch (e: Exception) {}
+        }
+    }
+
+    fun fetchEvents() {
+        viewModelScope.launch {
+            try {
+                val res = ZephyrClient.api.getEvents()
+                if (res.isSuccessful) {
+                    res.body()?.string()?.let { _eventsJson.update { _ -> it } }
+                }
+            } catch (e: Exception) {}
+        }
     }
 
     fun sendVoiceCmd(cmd: String) = executeAction { ZephyrClient.api.voice(cmd) }
@@ -109,7 +137,8 @@ class ZephyrViewModel : ViewModel() {
     fun setPump(on: Boolean) = executeAction { ZephyrClient.api.setPump(if (on) 1 else 0) }
     fun setSched(en: Boolean) = executeAction { ZephyrClient.api.setSched(en = if (en) 1 else 0) }
     fun setBrightness(v: Int) = executeAction { ZephyrClient.api.setBrightness(v) }
-    fun setLed(anim: String, r: Int, g: Int, b: Int, func: String = "") = executeAction { ZephyrClient.api.setLed(anim, r, g, b, func) }
+    fun setEffect(v: Int) = executeAction { ZephyrClient.api.setEffect(v) }
+    fun setSingleLed(idx: Int, r: Int, g: Int, b: Int) = executeAction { ZephyrClient.api.setSingleLed(idx, r, g, b) }
 
     private fun executeAction(action: suspend () -> Unit) {
         viewModelScope.launch {
